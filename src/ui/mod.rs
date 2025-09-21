@@ -1,5 +1,5 @@
 use egui::{
-    Image, ScrollArea,
+    Image, RichText, ScrollArea,
     TextStyle::{Body, Button, Heading},
 };
 use std::{
@@ -42,6 +42,8 @@ impl eframe::App for LichtApp {
         ctx.all_styles_mut(|style| {
             style.text_styles = text_styles.clone();
             style.visuals.override_text_color = Some(Color32::WHITE);
+            style.visuals.panel_fill = Color32::BLACK;
+            style.visuals.text_edit_bg_color = Some(Color32::DARK_GRAY);
         });
 
         if Instant::now()
@@ -79,6 +81,7 @@ impl LichtApp {
     pub fn show(&mut self, ui: &mut egui::Ui) {
         ui.heading("Licht");
         self.search(ui);
+        ui.separator();
         self.movie_results(ui);
     }
 
@@ -91,7 +94,6 @@ impl LichtApp {
     fn movie_results(&mut self, ui: &mut egui::Ui) {
         if let Some(resp) = &self.movie_search_response {
             ScrollArea::vertical().show(ui, |ui| {
-                ui.separator();
                 for result in &resp.results {
                     self.movie_result(result, ui);
                     ui.separator();
@@ -114,7 +116,7 @@ impl LichtApp {
 
             ui.vertical(|ui| {
                 ui.label(&result.original_title);
-                ui.label(&format!("({})", result.release_date));
+                ui.label(RichText::new(format!("{}", result.release_date)).color(Color32::GRAY));
             });
         });
     }
