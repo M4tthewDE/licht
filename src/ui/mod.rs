@@ -61,6 +61,11 @@ impl LichtApp {
 
     pub fn show(&mut self, ui: &mut egui::Ui) {
         ui.heading("Licht");
+        self.search(ui);
+        self.movie_results(ui);
+    }
+
+    fn search(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
             ui.text_edit_singleline(&mut self.search_text);
             if ui.button("Search").clicked() {
@@ -73,7 +78,9 @@ impl LichtApp {
                 });
             }
         });
+    }
 
+    fn movie_results(&mut self, ui: &mut egui::Ui) {
         if let Some(resp) = &self.movie_search_response {
             ScrollArea::vertical().show(ui, |ui| {
                 ui.separator();
