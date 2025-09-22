@@ -2,6 +2,7 @@ use egui::{
     Image, RichText, ScrollArea,
     TextStyle::{Body, Button, Heading},
 };
+use state::{State, StateMutation};
 use std::{
     collections::BTreeMap,
     sync::mpsc::{Receiver, Sender},
@@ -13,23 +14,23 @@ use egui::{Color32, FontId};
 
 use crate::{
     Config,
-    tmdb::{MovieSearchResponse, MovieSearchResult, TmdbClient},
+    tmdb::{MovieSearchResult, TmdbClient},
 };
+
+mod state;
 
 pub struct LichtApp {
     tmdb_client: TmdbClient,
-    search_text: String,
     rt: Runtime,
-    rx: Receiver<MovieSearchResponse>,
-    tx: Sender<MovieSearchResponse>,
-    movie_search_response: Option<MovieSearchResponse>,
-    last_change_time: Instant,
+    rx: Receiver<StateMutation>,
+    tx: Sender<StateMutation>,
+    state: State,
 }
 
 impl eframe::App for LichtApp {
     fn update(&mut self, ctx: &egui::Context, _: &mut eframe::Frame) {
-        if let Ok(resp) = self.rx.try_recv() {
-            self.movie_search_response = Some(resp);
+        if let Ok(modifier) = self.rx.try_recv() {
+            modifier(&mut self.state);
         }
 
         let text_styles: BTreeMap<_, _> = [
@@ -47,16 +48,19 @@ impl eframe::App for LichtApp {
         });
 
         if Instant::now()
-            .duration_since(self.last_change_time)
+            .duration_since(self.state.last_change_time)
             .as_millis()
             >= 250
         {
             let tmdb_client = self.tmdb_client.clone();
-            let search_text = self.search_text.clone();
+            let search_text = self.state.search_text.clone();
             let tx = self.tx.clone();
             self.rt.spawn(async move {
                 let resp = tmdb_client.search_movies(&search_text).await;
-                tx.send(resp).unwrap();
+                tx.send(Box::new(move |state: &mut State| {
+                    state.movie_search_response = Some(resp.clone())
+                }))
+                .unwrap();
             });
         }
 
@@ -67,14 +71,13 @@ impl eframe::App for LichtApp {
 impl LichtApp {
     pub fn new(config: Config) -> Self {
         let (tx, rx) = std::sync::mpsc::channel();
+
         Self {
             tmdb_client: TmdbClient::new(config.token),
-            search_text: String::new(),
             rt: Builder::new_multi_thread().enable_all().build().unwrap(),
             tx,
             rx,
-            movie_search_response: None,
-            last_change_time: Instant::now(),
+            state: State::new(),
         }
     }
 
@@ -86,13 +89,16 @@ impl LichtApp {
     }
 
     fn search(&mut self, ui: &mut egui::Ui) {
-        if ui.text_edit_singleline(&mut self.search_text).changed() {
-            self.last_change_time = Instant::now();
+        if ui
+            .text_edit_singleline(&mut self.state.search_text)
+            .changed()
+        {
+            self.state.last_change_time = Instant::now();
         }
     }
 
     fn movie_results(&mut self, ui: &mut egui::Ui) {
-        if let Some(resp) = &self.movie_search_response {
+        if let Some(resp) = &self.state.movie_search_response {
             ScrollArea::vertical().show(ui, |ui| {
                 for result in &resp.results {
                     self.movie_result(result, ui);

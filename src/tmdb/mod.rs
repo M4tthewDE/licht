@@ -8,14 +8,14 @@ use serde::Deserialize;
 pub struct TmdbClient {
     client: reqwest::Client,
 }
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct MovieSearchResult {
     pub original_title: String,
     pub release_date: Option<String>,
     pub poster_path: Option<String>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct MovieSearchResponse {
     pub results: Vec<MovieSearchResult>,
 }
