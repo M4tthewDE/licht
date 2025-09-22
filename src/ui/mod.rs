@@ -1,5 +1,5 @@
 use egui::{
-    Image, RichText, ScrollArea,
+    Image, ImageButton, RichText, ScrollArea,
     TextStyle::{Body, Button, Heading},
 };
 use state::{State, StateMutation};
@@ -67,7 +67,7 @@ impl eframe::App for LichtApp {
             });
         }
 
-        egui::CentralPanel::default().show(ctx, |ui| self.show(ui));
+        egui::CentralPanel::default().show(ctx, |ui| self.show(ctx, ui));
     }
 }
 
@@ -84,11 +84,11 @@ impl LichtApp {
         }
     }
 
-    pub fn show(&mut self, ui: &mut egui::Ui) {
+    pub fn show(&mut self, ctx: &egui::Context, ui: &mut egui::Ui) {
         ui.heading("Licht");
         self.search(ui);
         ui.separator();
-        self.movie_results(ui);
+        self.movie_results(ctx, ui);
     }
 
     fn search(&mut self, ui: &mut egui::Ui) {
@@ -100,28 +100,30 @@ impl LichtApp {
         }
     }
 
-    fn movie_results(&mut self, ui: &mut egui::Ui) {
+    fn movie_results(&mut self, ctx: &egui::Context, ui: &mut egui::Ui) {
         if let Some(resp) = &self.state.movie_search_response {
             ScrollArea::vertical().show(ui, |ui| {
                 for result in &resp.results {
-                    self.movie_result(result, ui);
+                    self.movie_result(ctx, result, ui);
                     ui.separator();
                 }
             });
         }
     }
 
-    fn movie_result(&self, result: &MovieSearchResult, ui: &mut egui::Ui) {
+    fn movie_result(&self, ctx: &egui::Context, result: &MovieSearchResult, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
-            if let Some(poster_path) = &result.poster_path {
-                ui.add(Image::new(format!(
-                    "https://image.tmdb.org/t/p/w600_and_h900_bestv2{}",
-                    poster_path
-                )).fit_to_exact_size(egui::vec2(90.0, 135.0)));
+            let url = if let Some(poster_path) = &result.poster_path {
+                format!("https://image.tmdb.org/t/p/w600_and_h900_bestv2{}", poster_path)
             } else {
-                ui.add(Image::new("https://www.themoviedb.org/assets/2/v4/glyphicons/basic/glyphicons-basic-38-picture-grey-c2ebdbb057f2a7614185931650f8cee23fa137b93812ccb132b9df511df1cfac.svg")
-                    .fit_to_exact_size(egui::vec2(90.0, 135.0)));
-        }
+                "https://www.themoviedb.org/assets/2/v4/glyphicons/basic/glyphicons-basic-38-picture-grey-c2ebdbb057f2a7614185931650f8cee23fa137b93812ccb132b9df511df1cfac.svg".to_string()
+            };
+
+            let image = Image::new(&url).fit_to_exact_size(egui::vec2(90.0, 135.0));
+
+            if ui.add(ImageButton::new(image)).clicked() {
+                ctx.open_url(egui::OpenUrl { url , new_tab: false })
+            };
 
             ui.vertical(|ui| {
                 ui.horizontal(|ui| {
