@@ -47,17 +47,23 @@ impl eframe::App for LichtApp {
             style.visuals.text_edit_bg_color = Some(Color32::DARK_GRAY);
         });
 
-        if Instant::now()
-            .duration_since(self.state.last_change_time)
-            .as_millis()
-            >= 250
+        if let Some(last_change_time) = self.state.last_change_time
+            && Instant::now().duration_since(last_change_time).as_millis() >= 250
         {
+            self.state.last_change_time = None;
+
             let tmdb_client = self.tmdb_client.clone();
             let search_text = self.state.search_text.clone();
             let tx = self.tx.clone();
             self.rt.spawn(async move {
                 let resp = tmdb_client.search_movies(&search_text).await;
-                tx.send(state::movie_search_mutation(resp)).unwrap();
+                tx.send(state::movie_search_mutation(resp.clone())).unwrap();
+
+                for movie_result in &resp.results {
+                    let details = tmdb_client.movie_details(movie_result.id).await;
+                    tx.send(state::movie_details_mutation(details.clone()))
+                        .unwrap();
+                }
             });
         }
 
@@ -74,7 +80,7 @@ impl LichtApp {
             rt: Builder::new_multi_thread().enable_all().build().unwrap(),
             tx,
             rx,
-            state: State::new(),
+            state: State::default(),
         }
     }
 
@@ -90,7 +96,7 @@ impl LichtApp {
             .text_edit_singleline(&mut self.state.search_text)
             .changed()
         {
-            self.state.last_change_time = Instant::now();
+            self.state.last_change_time = Some(Instant::now());
         }
     }
 
@@ -118,8 +124,21 @@ impl LichtApp {
         }
 
             ui.vertical(|ui| {
-                ui.label(&result.original_title);
+                if let Some(details) = self.state.details(result.id) {
+                    if details.tagline.is_empty() {
+                        ui.label(&result.original_title);
+                    } else {
+                        ui.label(&result.original_title).on_hover_ui(|ui| {
+                            ui.label(&details.tagline);
+                        });
+                    }
+                }
+
                 ui.label(RichText::new(result.release_date.clone().unwrap_or_default()).color(Color32::GRAY));
+
+                if let Some(details) = self.state.details(result.id) {
+                    ui.label(details.overview);
+                }
             });
         });
     }

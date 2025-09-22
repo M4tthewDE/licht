@@ -10,6 +10,7 @@ pub struct TmdbClient {
 }
 #[derive(Deserialize, Debug, Clone)]
 pub struct MovieSearchResult {
+    pub id: u64,
     pub original_title: String,
     pub release_date: Option<String>,
     pub poster_path: Option<String>,
@@ -18,6 +19,13 @@ pub struct MovieSearchResult {
 #[derive(Deserialize, Debug, Clone)]
 pub struct MovieSearchResponse {
     pub results: Vec<MovieSearchResult>,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct MovieDetailsResponse {
+    pub id: u64,
+    pub tagline: String,
+    pub overview: String,
 }
 
 impl TmdbClient {
@@ -40,6 +48,25 @@ impl TmdbClient {
             .client
             .request(Method::GET, "https://api.themoviedb.org/3/search/movie")
             .query(&[("language", "en-US"), ("page", "1"), ("query", search_text)])
+            .build()
+            .unwrap();
+
+        self.client
+            .execute(request)
+            .await
+            .unwrap()
+            .json()
+            .await
+            .unwrap()
+    }
+
+    pub async fn movie_details(&self, id: u64) -> MovieDetailsResponse {
+        let request = self
+            .client
+            .request(
+                Method::GET,
+                format!("https://api.themoviedb.org/3/movie/{}", id),
+            )
             .build()
             .unwrap();
 

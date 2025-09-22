@@ -1,19 +1,23 @@
-use crate::tmdb::MovieSearchResponse;
+use crate::tmdb::{MovieDetailsResponse, MovieSearchResponse};
 use std::time::Instant;
 
+#[derive(Default)]
 pub struct State {
     pub search_text: String,
     pub movie_search_response: Option<MovieSearchResponse>,
-    pub last_change_time: Instant,
+    pub last_change_time: Option<Instant>,
+    pub movie_details: Vec<MovieDetailsResponse>,
 }
 
 impl State {
-    pub fn new() -> Self {
-        Self {
-            search_text: String::new(),
-            movie_search_response: None,
-            last_change_time: Instant::now(),
+    pub fn details(&self, id: u64) -> Option<MovieDetailsResponse> {
+        for details in &self.movie_details {
+            if details.id == id {
+                return Some(details.clone());
+            }
         }
+
+        None
     }
 }
 
@@ -21,4 +25,8 @@ pub type StateMutation = Box<dyn Fn(&mut State) + Send + 'static>;
 
 pub fn movie_search_mutation(resp: MovieSearchResponse) -> StateMutation {
     Box::new(move |state: &mut State| state.movie_search_response = Some(resp.clone()))
+}
+
+pub fn movie_details_mutation(resp: MovieDetailsResponse) -> StateMutation {
+    Box::new(move |state: &mut State| state.movie_details.push(resp.clone()))
 }
