@@ -28,6 +28,18 @@ pub struct MovieDetailsResponse {
     pub runtime: u64,
 }
 
+#[derive(Deserialize, Debug, Clone)]
+pub struct MovieCastMember {
+    pub name: String,
+    pub profile_path: Option<String>,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct MovieCreditsResponse {
+    pub id: u64,
+    pub cast: Vec<MovieCastMember>,
+}
+
 impl TmdbClient {
     pub fn new(token: String) -> Self {
         let mut headers = HeaderMap::new();
@@ -66,6 +78,25 @@ impl TmdbClient {
             .request(
                 Method::GET,
                 format!("https://api.themoviedb.org/3/movie/{}", id),
+            )
+            .build()
+            .unwrap();
+
+        self.client
+            .execute(request)
+            .await
+            .unwrap()
+            .json()
+            .await
+            .unwrap()
+    }
+
+    pub async fn movie_credits(&self, id: u64) -> MovieCreditsResponse {
+        let request = self
+            .client
+            .request(
+                Method::GET,
+                format!("https://api.themoviedb.org/3/movie/{}/credits", id),
             )
             .build()
             .unwrap();

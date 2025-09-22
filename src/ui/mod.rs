@@ -63,6 +63,10 @@ impl eframe::App for LichtApp {
                     let details = tmdb_client.movie_details(movie_result.id).await;
                     tx.send(state::movie_details_mutation(details.clone()))
                         .unwrap();
+
+                    let credits = tmdb_client.movie_credits(movie_result.id).await;
+                    tx.send(state::movie_credits_mutation(credits.clone()))
+                        .unwrap();
                 }
             });
         }
@@ -119,7 +123,7 @@ impl LichtApp {
                 "https://www.themoviedb.org/assets/2/v4/glyphicons/basic/glyphicons-basic-38-picture-grey-c2ebdbb057f2a7614185931650f8cee23fa137b93812ccb132b9df511df1cfac.svg".to_string()
             };
 
-            let image = Image::new(&url).fit_to_exact_size(egui::vec2(90.0, 135.0));
+            let image = Image::new(&url).fit_to_exact_size(egui::vec2(120.0, 160.0));
 
             if ui.add(ImageButton::new(image)).clicked() {
                 ctx.open_url(egui::OpenUrl { url , new_tab: false })
@@ -137,6 +141,25 @@ impl LichtApp {
 
                 if let Some(details) = self.state.details(result.id) {
                     ui.label(details.overview);
+                    ui.add_space(10.0);
+                }
+
+                if let Some(credits) = self.state.credits(result.id) {
+                    ui.horizontal(|ui| {
+                        for credit in credits.cast.iter().take(10) {
+                            let url = if let Some(poster_path) = &credit.profile_path {
+                                format!("https://image.tmdb.org/t/p/w600_and_h900_bestv2{}", poster_path)
+                            } else {
+                                "https://www.themoviedb.org/assets/2/v4/glyphicons/basic/glyphicons-basic-38-picture-grey-c2ebdbb057f2a7614185931650f8cee23fa137b93812ccb132b9df511df1cfac.svg".to_string()
+                            };
+
+                            let image = Image::new(&url).fit_to_exact_size(egui::vec2(60.0, 90.0));
+
+                            ui.add(image).on_hover_ui(|ui| {
+                                ui.label(&credit.name);
+                            });
+                        }
+                    });
                 }
             });
         });
