@@ -24,8 +24,8 @@ pub struct MovieSearchResponse {
 #[derive(Deserialize, Debug, Clone)]
 pub struct MovieDetailsResponse {
     pub id: u64,
-    pub tagline: String,
     pub overview: String,
+    pub runtime: u64,
 }
 
 impl TmdbClient {

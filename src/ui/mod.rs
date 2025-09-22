@@ -124,15 +124,12 @@ impl LichtApp {
         }
 
             ui.vertical(|ui| {
-                if let Some(details) = self.state.details(result.id) {
-                    if details.tagline.is_empty() {
-                        ui.label(&result.original_title);
-                    } else {
-                        ui.label(&result.original_title).on_hover_ui(|ui| {
-                            ui.label(&details.tagline);
-                        });
+                ui.horizontal(|ui| {
+                    ui.label(&result.original_title);
+                    if let Some(details) = self.state.details(result.id) && details.runtime != 0 {
+                        ui.label(RichText::new(humanize_runtime(details.runtime)).color(Color32::GRAY));
                     }
-                }
+                });
 
                 ui.label(RichText::new(result.release_date.clone().unwrap_or_default()).color(Color32::GRAY));
 
@@ -141,5 +138,16 @@ impl LichtApp {
                 }
             });
         });
+    }
+}
+
+fn humanize_runtime(runtime: u64) -> String {
+    let hours = runtime / 60;
+    let minutes = runtime % 60;
+
+    if hours == 0 {
+        format!("{minutes}m")
+    } else {
+        format!("{hours}h{minutes}m")
     }
 }
