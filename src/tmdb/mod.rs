@@ -11,7 +11,7 @@ pub struct TmdbClient {
 #[derive(Deserialize, Debug)]
 pub struct MovieSearchResult {
     pub original_title: String,
-    pub release_date: String,
+    pub release_date: Option<String>,
     pub poster_path: Option<String>,
 }
 

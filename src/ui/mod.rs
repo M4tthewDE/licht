@@ -112,11 +112,11 @@ impl LichtApp {
             } else {
                 ui.add(Image::new("https://www.themoviedb.org/assets/2/v4/glyphicons/basic/glyphicons-basic-38-picture-grey-c2ebdbb057f2a7614185931650f8cee23fa137b93812ccb132b9df511df1cfac.svg")
                     .fit_to_exact_size(egui::vec2(90.0, 135.0)));
-            }
+        }
 
             ui.vertical(|ui| {
                 ui.label(&result.original_title);
-                ui.label(RichText::new(format!("{}", result.release_date)).color(Color32::GRAY));
+                ui.label(RichText::new(result.release_date.clone().unwrap_or_default()).color(Color32::GRAY));
             });
         });
     }
