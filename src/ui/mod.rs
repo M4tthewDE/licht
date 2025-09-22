@@ -57,10 +57,7 @@ impl eframe::App for LichtApp {
             let tx = self.tx.clone();
             self.rt.spawn(async move {
                 let resp = tmdb_client.search_movies(&search_text).await;
-                tx.send(Box::new(move |state: &mut State| {
-                    state.movie_search_response = Some(resp.clone())
-                }))
-                .unwrap();
+                tx.send(state::movie_search_mutation(resp)).unwrap();
             });
         }
 

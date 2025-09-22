@@ -18,3 +18,7 @@ impl State {
 }
 
 pub type StateMutation = Box<dyn Fn(&mut State) + Send + 'static>;
+
+pub fn movie_search_mutation(resp: MovieSearchResponse) -> StateMutation {
+    Box::new(move |state: &mut State| state.movie_search_response = Some(resp.clone()))
+}
