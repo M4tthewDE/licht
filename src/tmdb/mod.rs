@@ -73,17 +73,9 @@ impl TmdbClient {
     }
 
     pub async fn movie_details(&self, id: u64) -> MovieDetailsResponse {
-        let request = self
-            .client
-            .request(
-                Method::GET,
-                format!("https://api.themoviedb.org/3/movie/{}", id),
-            )
-            .build()
-            .unwrap();
-
         self.client
-            .execute(request)
+            .get(format!("https://api.themoviedb.org/3/movie/{}", id))
+            .send()
             .await
             .unwrap()
             .json()
@@ -92,17 +84,9 @@ impl TmdbClient {
     }
 
     pub async fn movie_credits(&self, id: u64) -> MovieCreditsResponse {
-        let request = self
-            .client
-            .request(
-                Method::GET,
-                format!("https://api.themoviedb.org/3/movie/{}/credits", id),
-            )
-            .build()
-            .unwrap();
-
         self.client
-            .execute(request)
+            .get(format!("https://api.themoviedb.org/3/movie/{}/credits", id))
+            .send()
             .await
             .unwrap()
             .json()
