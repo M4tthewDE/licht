@@ -128,7 +128,7 @@ impl LichtApp {
 
     fn movie_results(&mut self, ui: &mut egui::Ui) {
         if !self.state.movie_searches.is_empty() {
-            ScrollArea::vertical().show(ui, |ui| {
+            ScrollArea::both().show(ui, |ui| {
                 for movie_search in self.state.movie_searches.clone() {
                     self.movie_search_results(movie_search.clone(), ui);
                     ui.separator();
@@ -165,7 +165,7 @@ impl LichtApp {
 
                 if let Some(movie_credits) = self.state.credits(movie_search.id) {
                     ui.horizontal(|ui| {
-                        for credit in movie_credits.credits.iter().take(10) {
+                        for credit in movie_credits.credits {
                             let image = Image::new(&credit.profile_photo_url)
                                 .fit_to_exact_size(egui::vec2(60.0, 90.0));
 
