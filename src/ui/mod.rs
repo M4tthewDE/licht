@@ -48,33 +48,7 @@ impl eframe::App for LichtApp {
         if let Some(last_change_time) = self.state.last_change_time
             && Instant::now().duration_since(last_change_time).as_millis() >= 250
         {
-            self.state.last_change_time = None;
-
-            let tmdb_client = self.tmdb_client.clone();
-            let search_text = self.state.search_text.clone();
-            let tx = self.tx.clone();
-            self.rt.spawn(async move {
-                let movie_searches: Vec<MovieSearch> = tmdb_client
-                    .search_movies(&search_text)
-                    .await
-                    .results
-                    .iter()
-                    .map(|s| s.clone().into())
-                    .collect();
-                tx.send(state::movie_search_mutation(movie_searches.clone()))
-                    .unwrap();
-
-                for movie_search in &movie_searches {
-                    let movie_details = tmdb_client.movie_details(movie_search.id).await;
-                    tx.send(state::movie_details_mutation(movie_details.clone().into()))
-                        .unwrap();
-
-                    tx.send(state::movie_credits_mutation(
-                        tmdb_client.movie_credits(movie_search.id).await.into(),
-                    ))
-                    .unwrap();
-                }
-            });
+            self.do_search();
         }
 
         egui::CentralPanel::default().show(ctx, |ui| self.show(ctx, ui));
@@ -94,7 +68,37 @@ impl LichtApp {
         }
     }
 
-    pub fn show(&mut self, ctx: &egui::Context, ui: &mut egui::Ui) {
+    fn do_search(&mut self) {
+        self.state.last_change_time = None;
+
+        let tmdb_client = self.tmdb_client.clone();
+        let search_text = self.state.search_text.clone();
+        let tx = self.tx.clone();
+        self.rt.spawn(async move {
+            let movie_searches: Vec<MovieSearch> = tmdb_client
+                .search_movies(&search_text)
+                .await
+                .results
+                .iter()
+                .map(|s| s.clone().into())
+                .collect();
+            tx.send(state::movie_search_mutation(movie_searches.clone()))
+                .unwrap();
+
+            for movie_search in &movie_searches {
+                let movie_details = tmdb_client.movie_details(movie_search.id).await;
+                tx.send(state::movie_details_mutation(movie_details.clone().into()))
+                    .unwrap();
+
+                tx.send(state::movie_credits_mutation(
+                    tmdb_client.movie_credits(movie_search.id).await.into(),
+                ))
+                .unwrap();
+            }
+        });
+    }
+
+    fn show(&mut self, ctx: &egui::Context, ui: &mut egui::Ui) {
         if let Some(current_movie) = self.state.current_movie {
             if ui.button("Back").clicked() {
                 self.state.current_movie = None;
