@@ -53,6 +53,7 @@ impl From<MovieDetailsResponse> for MovieDetails {
 pub struct MovieCredit {
     pub name: String,
     pub profile_photo_url: String,
+    pub character: String,
 }
 
 impl From<MovieCastMember> for MovieCredit {
@@ -60,6 +61,7 @@ impl From<MovieCastMember> for MovieCredit {
         Self {
             name: cast_member.name,
             profile_photo_url: build_poster_url(cast_member.profile_path),
+            character: cast_member.character,
         }
     }
 }

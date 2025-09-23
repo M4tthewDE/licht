@@ -170,7 +170,10 @@ impl LichtApp {
                                 .fit_to_exact_size(egui::vec2(60.0, 90.0));
 
                             ui.add(image).on_hover_ui(|ui| {
-                                ui.label(&credit.name);
+                                ui.vertical(|ui| {
+                                    ui.label(&credit.name);
+                                    ui.label(RichText::new(&credit.character).color(Color32::GRAY));
+                                });
                             });
                         }
                     });

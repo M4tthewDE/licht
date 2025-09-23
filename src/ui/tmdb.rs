@@ -36,6 +36,7 @@ pub struct MovieDetailsResponse {
 pub struct MovieCastMember {
     pub name: String,
     pub profile_path: Option<String>,
+    pub character: String,
 }
 
 #[derive(Deserialize, Debug, Clone)]
