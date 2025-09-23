@@ -2,7 +2,6 @@ use std::fs::File;
 
 use serde::Deserialize;
 
-mod tmdb;
 mod ui;
 
 #[derive(Deserialize, Clone)]

@@ -1,7 +1,7 @@
-use crate::tmdb::{MovieCastMember, MovieCreditsResponse, MovieDetailsResponse, MovieSearchResult};
+use crate::ui::tmdb::{
+    MovieCastMember, MovieCreditsResponse, MovieDetailsResponse, MovieSearchResult,
+};
 use std::time::Instant;
-
-use super::util;
 
 pub type MovieId = u64;
 
@@ -19,7 +19,7 @@ impl From<MovieSearchResult> for MovieSearch {
             id: search.id,
             original_title: search.original_title,
             release_date: search.release_date,
-            poster_url: util::build_poster_url(search.poster_path),
+            poster_url: build_poster_url(search.poster_path),
         }
     }
 }
@@ -41,7 +41,7 @@ impl From<MovieDetailsResponse> for MovieDetails {
             id: details.id,
             original_title: details.original_title,
             release_date: details.release_date,
-            poster_url: util::build_poster_url(details.poster_path),
+            poster_url: build_poster_url(details.poster_path),
             runtime: details.runtime,
             tagline: details.tagline,
             overview: details.overview,
@@ -59,7 +59,7 @@ impl From<MovieCastMember> for MovieCredit {
     fn from(cast_member: MovieCastMember) -> Self {
         Self {
             name: cast_member.name,
-            profile_photo_url: util::build_poster_url(cast_member.profile_path),
+            profile_photo_url: build_poster_url(cast_member.profile_path),
         }
     }
 }
@@ -123,4 +123,15 @@ pub fn movie_details_mutation(movie_details: MovieDetails) -> StateMutation {
 
 pub fn movie_credits_mutation(movie_credits: MovieCredits) -> StateMutation {
     Box::new(move |state: &mut State| state.movie_credits.push(movie_credits.clone()))
+}
+
+fn build_poster_url(poster_path: Option<String>) -> String {
+    if let Some(poster_path) = poster_path {
+        format!(
+            "https://image.tmdb.org/t/p/w600_and_h900_bestv2{}",
+            poster_path
+        )
+    } else {
+        "https://www.themoviedb.org/assets/2/v4/glyphicons/basic/glyphicons-basic-38-picture-grey-c2ebdbb057f2a7614185931650f8cee23fa137b93812ccb132b9df511df1cfac.svg".to_string()
+    }
 }

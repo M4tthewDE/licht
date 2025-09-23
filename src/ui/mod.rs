@@ -1,3 +1,4 @@
+use crate::Config;
 use egui::{
     Image, ImageButton, RichText, ScrollArea,
     TextStyle::{Body, Button, Heading},
@@ -8,14 +9,13 @@ use std::{
     sync::mpsc::{Receiver, Sender},
     time::Instant,
 };
+use tmdb::TmdbClient;
 use tokio::runtime::{Builder, Runtime};
 
 use egui::{Color32, FontId};
 
-use crate::{Config, tmdb::TmdbClient};
-
 mod state;
-mod util;
+mod tmdb;
 
 pub struct LichtApp {
     tmdb_client: TmdbClient,
@@ -154,9 +154,7 @@ impl LichtApp {
                 if let Some(details) = self.state.details(movie_search.id)
                     && details.runtime != 0
                 {
-                    ui.label(
-                        RichText::new(util::humanize_runtime(details.runtime)).color(Color32::GRAY),
-                    );
+                    ui.label(RichText::new(humanize_runtime(details.runtime)).color(Color32::GRAY));
                 }
 
                 ui.add_space(10.0);
@@ -198,13 +196,23 @@ impl LichtApp {
                 });
 
                 ui.label(
-                    RichText::new(util::humanize_runtime(movie_details.runtime))
-                        .color(Color32::GRAY),
+                    RichText::new(humanize_runtime(movie_details.runtime)).color(Color32::GRAY),
                 );
                 ui.label(movie_details.tagline.clone().unwrap_or_default());
                 ui.separator();
                 ui.label(movie_details.overview.clone().unwrap_or_default());
             });
         });
+    }
+}
+
+fn humanize_runtime(runtime: u64) -> String {
+    let hours = runtime / 60;
+    let minutes = runtime % 60;
+
+    if hours == 0 {
+        format!("{minutes}m")
+    } else {
+        format!("{hours}h{minutes}m")
     }
 }
