@@ -2,7 +2,7 @@ use egui::{
     Image, ImageButton, RichText, ScrollArea,
     TextStyle::{Body, Button, Heading},
 };
-use state::{State, StateMutation};
+use state::{MovieDetails, MovieSearch, State, StateMutation};
 use std::{
     collections::BTreeMap,
     sync::mpsc::{Receiver, Sender},
@@ -12,12 +12,10 @@ use tokio::runtime::{Builder, Runtime};
 
 use egui::{Color32, FontId};
 
-use crate::{
-    Config,
-    tmdb::{MovieDetailsResponse, MovieSearchResult, TmdbClient},
-};
+use crate::{Config, tmdb::TmdbClient};
 
 mod state;
+mod util;
 
 pub struct LichtApp {
     tmdb_client: TmdbClient,
@@ -56,17 +54,25 @@ impl eframe::App for LichtApp {
             let search_text = self.state.search_text.clone();
             let tx = self.tx.clone();
             self.rt.spawn(async move {
-                let resp = tmdb_client.search_movies(&search_text).await;
-                tx.send(state::movie_search_mutation(resp.clone())).unwrap();
+                let movie_searches: Vec<MovieSearch> = tmdb_client
+                    .search_movies(&search_text)
+                    .await
+                    .results
+                    .iter()
+                    .map(|s| s.clone().into())
+                    .collect();
+                tx.send(state::movie_search_mutation(movie_searches.clone()))
+                    .unwrap();
 
-                for movie_result in &resp.results {
-                    let details = tmdb_client.movie_details(movie_result.id).await;
-                    tx.send(state::movie_details_mutation(details.clone()))
+                for movie_search in &movie_searches {
+                    let movie_details = tmdb_client.movie_details(movie_search.id).await;
+                    tx.send(state::movie_details_mutation(movie_details.clone().into()))
                         .unwrap();
 
-                    let credits = tmdb_client.movie_credits(movie_result.id).await;
-                    tx.send(state::movie_credits_mutation(credits.clone()))
-                        .unwrap();
+                    tx.send(state::movie_credits_mutation(
+                        tmdb_client.movie_credits(movie_search.id).await.into(),
+                    ))
+                    .unwrap();
                 }
             });
         }
@@ -117,52 +123,49 @@ impl LichtApp {
     }
 
     fn movie_results(&mut self, ui: &mut egui::Ui) {
-        if let Some(resp) = self.state.movie_search_response.clone() {
+        if !self.state.movie_searches.is_empty() {
             ScrollArea::vertical().show(ui, |ui| {
-                for result in &resp.results {
-                    self.movie_result(result, ui);
+                for movie_search in self.state.movie_searches.clone() {
+                    self.movie_search_results(movie_search.clone(), ui);
                     ui.separator();
                 }
             });
         }
     }
 
-    fn movie_result(&mut self, result: &MovieSearchResult, ui: &mut egui::Ui) {
+    fn movie_search_results(&mut self, movie_search: MovieSearch, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
-            let url = if let Some(poster_path) = &result.poster_path {
-                format!("https://image.tmdb.org/t/p/w600_and_h900_bestv2{}", poster_path)
-            } else {
-                "https://www.themoviedb.org/assets/2/v4/glyphicons/basic/glyphicons-basic-38-picture-grey-c2ebdbb057f2a7614185931650f8cee23fa137b93812ccb132b9df511df1cfac.svg".to_string()
-            };
-
-            let image = Image::new(&url).fit_to_exact_size(egui::vec2(120.0, 160.0));
+            let image =
+                Image::new(&movie_search.poster_url).fit_to_exact_size(egui::vec2(120.0, 160.0));
 
             if ui.add(ImageButton::new(image)).clicked() {
-                self.state.current_movie = Some(result.id);
+                self.state.current_movie = Some(movie_search.id);
             };
 
             ui.vertical(|ui| {
                 ui.horizontal(|ui| {
-                    ui.label(&result.original_title);
-                    ui.label(RichText::new(result.release_date.clone().unwrap_or_default()).color(Color32::GRAY));
+                    ui.label(&movie_search.original_title);
+                    ui.label(
+                        RichText::new(movie_search.release_date.clone().unwrap_or_default())
+                            .color(Color32::GRAY),
+                    );
                 });
 
-                if let Some(details) = self.state.details(result.id) && details.runtime != 0 {
-                    ui.label(RichText::new(humanize_runtime(details.runtime)).color(Color32::GRAY));
+                if let Some(details) = self.state.details(movie_search.id)
+                    && details.runtime != 0
+                {
+                    ui.label(
+                        RichText::new(util::humanize_runtime(details.runtime)).color(Color32::GRAY),
+                    );
                 }
 
                 ui.add_space(10.0);
 
-                if let Some(credits) = self.state.credits(result.id) {
+                if let Some(movie_credits) = self.state.credits(movie_search.id) {
                     ui.horizontal(|ui| {
-                        for credit in credits.cast.iter().take(10) {
-                            let url = if let Some(poster_path) = &credit.profile_path {
-                                format!("https://image.tmdb.org/t/p/w600_and_h900_bestv2{}", poster_path)
-                            } else {
-                                "https://www.themoviedb.org/assets/2/v4/glyphicons/basic/glyphicons-basic-38-picture-grey-c2ebdbb057f2a7614185931650f8cee23fa137b93812ccb132b9df511df1cfac.svg".to_string()
-                            };
-
-                            let image = Image::new(&url).fit_to_exact_size(egui::vec2(60.0, 90.0));
+                        for credit in movie_credits.credits.iter().take(10) {
+                            let image = Image::new(&credit.profile_photo_url)
+                                .fit_to_exact_size(egui::vec2(60.0, 90.0));
 
                             ui.add(image).on_hover_ui(|ui| {
                                 ui.label(&credit.name);
@@ -174,47 +177,34 @@ impl LichtApp {
         });
     }
 
-    fn movie(&self, ctx: &egui::Context, movie_details: &MovieDetailsResponse, ui: &mut egui::Ui) {
+    fn movie(&self, ctx: &egui::Context, movie_details: &MovieDetails, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
-            let url = if let Some(poster_path) = &movie_details.poster_path {
-                format!(
-                    "https://image.tmdb.org/t/p/w600_and_h900_bestv2{}",
-                    poster_path
-                )
-            } else {
-                "https://www.themoviedb.org/assets/2/v4/glyphicons/basic/glyphicons-basic-38-picture-grey-c2ebdbb057f2a7614185931650f8cee23fa137b93812ccb132b9df511df1cfac.svg".to_string()
-            };
-
-            let image = Image::new(&url).fit_to_exact_size(egui::vec2(120.0, 160.0));
+            let image =
+                Image::new(&movie_details.poster_url).fit_to_exact_size(egui::vec2(120.0, 160.0));
 
             if ui.add(ImageButton::new(image)).clicked() {
                 ctx.open_url(egui::OpenUrl {
-                    url,
+                    url: movie_details.poster_url.clone(),
                     new_tab: false,
                 })
             };
             ui.vertical(|ui| {
                 ui.horizontal(|ui| {
                     ui.heading(&movie_details.original_title);
-                    ui.label(RichText::new(movie_details.release_date.clone().unwrap_or_default()).color(Color32::GRAY));
+                    ui.label(
+                        RichText::new(movie_details.release_date.clone().unwrap_or_default())
+                            .color(Color32::GRAY),
+                    );
                 });
 
-                ui.label(RichText::new(humanize_runtime(movie_details.runtime)).color(Color32::GRAY));
+                ui.label(
+                    RichText::new(util::humanize_runtime(movie_details.runtime))
+                        .color(Color32::GRAY),
+                );
                 ui.label(movie_details.tagline.clone().unwrap_or_default());
                 ui.separator();
                 ui.label(movie_details.overview.clone().unwrap_or_default());
             });
         });
-    }
-}
-
-fn humanize_runtime(runtime: u64) -> String {
-    let hours = runtime / 60;
-    let minutes = runtime % 60;
-
-    if hours == 0 {
-        format!("{minutes}m")
-    } else {
-        format!("{hours}h{minutes}m")
     }
 }
