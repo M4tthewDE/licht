@@ -51,7 +51,7 @@ impl eframe::App for LichtApp {
             self.do_search();
         }
 
-        egui::CentralPanel::default().show(ctx, |ui| self.show(ctx, ui));
+        egui::CentralPanel::default().show(ctx, |ui| self.show(ui));
     }
 }
 
@@ -98,7 +98,7 @@ impl LichtApp {
         });
     }
 
-    fn show(&mut self, ctx: &egui::Context, ui: &mut egui::Ui) {
+    fn show(&mut self, ui: &mut egui::Ui) {
         if let Some(current_movie) = self.state.current_movie {
             if ui.button("Back").clicked() {
                 self.state.current_movie = None;
@@ -107,7 +107,7 @@ impl LichtApp {
             ui.separator();
 
             if let Some(movie_details) = self.state.details(current_movie) {
-                self.movie(ctx, &movie_details, ui);
+                self.movie(&movie_details, ui);
             }
         } else {
             ui.heading("Search");
@@ -179,17 +179,13 @@ impl LichtApp {
         });
     }
 
-    fn movie(&self, ctx: &egui::Context, movie_details: &MovieDetails, ui: &mut egui::Ui) {
+    fn movie(&self, movie_details: &MovieDetails, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
             let image =
                 Image::new(&movie_details.poster_url).fit_to_exact_size(egui::vec2(120.0, 160.0));
 
-            if ui.add(ImageButton::new(image)).clicked() {
-                ctx.open_url(egui::OpenUrl {
-                    url: movie_details.poster_url.clone(),
-                    new_tab: false,
-                })
-            };
+            ui.add(image);
+
             ui.vertical(|ui| {
                 ui.horizontal(|ui| {
                     ui.heading(&movie_details.original_title);
