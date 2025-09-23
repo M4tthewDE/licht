@@ -1,6 +1,7 @@
 use crate::tmdb::{MovieCreditsResponse, MovieDetailsResponse, MovieSearchResponse};
 use std::time::Instant;
 
+// TODO: define own structs instead of using tmdb responses
 #[derive(Default)]
 pub struct State {
     pub search_text: String,
@@ -8,6 +9,7 @@ pub struct State {
     pub last_change_time: Option<Instant>,
     pub movie_details: Vec<MovieDetailsResponse>,
     pub movie_credits: Vec<MovieCreditsResponse>,
+    pub current_movie: Option<u64>,
 }
 
 impl State {

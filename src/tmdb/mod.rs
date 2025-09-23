@@ -24,8 +24,12 @@ pub struct MovieSearchResponse {
 #[derive(Deserialize, Debug, Clone)]
 pub struct MovieDetailsResponse {
     pub id: u64,
-    pub overview: String,
+    pub overview: Option<String>,
     pub runtime: u64,
+    pub original_title: String,
+    pub poster_path: Option<String>,
+    pub release_date: Option<String>,
+    pub tagline: Option<String>,
 }
 
 #[derive(Deserialize, Debug, Clone)]

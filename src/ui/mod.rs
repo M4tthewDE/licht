@@ -14,7 +14,7 @@ use egui::{Color32, FontId};
 
 use crate::{
     Config,
-    tmdb::{MovieSearchResult, TmdbClient},
+    tmdb::{MovieDetailsResponse, MovieSearchResult, TmdbClient},
 };
 
 mod state;
@@ -89,10 +89,22 @@ impl LichtApp {
     }
 
     pub fn show(&mut self, ctx: &egui::Context, ui: &mut egui::Ui) {
-        ui.heading("Licht");
-        self.search(ui);
-        ui.separator();
-        self.movie_results(ctx, ui);
+        if let Some(current_movie) = self.state.current_movie {
+            if ui.button("Back").clicked() {
+                self.state.current_movie = None;
+            }
+
+            ui.separator();
+
+            if let Some(movie_details) = self.state.details(current_movie) {
+                self.movie(ctx, &movie_details, ui);
+            }
+        } else {
+            ui.heading("Search");
+            self.search(ui);
+            ui.separator();
+            self.movie_results(ui);
+        }
     }
 
     fn search(&mut self, ui: &mut egui::Ui) {
@@ -104,18 +116,18 @@ impl LichtApp {
         }
     }
 
-    fn movie_results(&mut self, ctx: &egui::Context, ui: &mut egui::Ui) {
-        if let Some(resp) = &self.state.movie_search_response {
+    fn movie_results(&mut self, ui: &mut egui::Ui) {
+        if let Some(resp) = self.state.movie_search_response.clone() {
             ScrollArea::vertical().show(ui, |ui| {
                 for result in &resp.results {
-                    self.movie_result(ctx, result, ui);
+                    self.movie_result(result, ui);
                     ui.separator();
                 }
             });
         }
     }
 
-    fn movie_result(&self, ctx: &egui::Context, result: &MovieSearchResult, ui: &mut egui::Ui) {
+    fn movie_result(&mut self, result: &MovieSearchResult, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
             let url = if let Some(poster_path) = &result.poster_path {
                 format!("https://image.tmdb.org/t/p/w600_and_h900_bestv2{}", poster_path)
@@ -126,23 +138,20 @@ impl LichtApp {
             let image = Image::new(&url).fit_to_exact_size(egui::vec2(120.0, 160.0));
 
             if ui.add(ImageButton::new(image)).clicked() {
-                ctx.open_url(egui::OpenUrl { url , new_tab: false })
+                self.state.current_movie = Some(result.id);
             };
 
             ui.vertical(|ui| {
                 ui.horizontal(|ui| {
                     ui.label(&result.original_title);
-                    if let Some(details) = self.state.details(result.id) && details.runtime != 0 {
-                        ui.label(RichText::new(humanize_runtime(details.runtime)).color(Color32::GRAY));
-                    }
+                    ui.label(RichText::new(result.release_date.clone().unwrap_or_default()).color(Color32::GRAY));
                 });
 
-                ui.label(RichText::new(result.release_date.clone().unwrap_or_default()).color(Color32::GRAY));
-
-                if let Some(details) = self.state.details(result.id) {
-                    ui.label(details.overview);
-                    ui.add_space(10.0);
+                if let Some(details) = self.state.details(result.id) && details.runtime != 0 {
+                    ui.label(RichText::new(humanize_runtime(details.runtime)).color(Color32::GRAY));
                 }
+
+                ui.add_space(10.0);
 
                 if let Some(credits) = self.state.credits(result.id) {
                     ui.horizontal(|ui| {
@@ -161,6 +170,39 @@ impl LichtApp {
                         }
                     });
                 }
+            });
+        });
+    }
+
+    fn movie(&self, ctx: &egui::Context, movie_details: &MovieDetailsResponse, ui: &mut egui::Ui) {
+        ui.horizontal(|ui| {
+            let url = if let Some(poster_path) = &movie_details.poster_path {
+                format!(
+                    "https://image.tmdb.org/t/p/w600_and_h900_bestv2{}",
+                    poster_path
+                )
+            } else {
+                "https://www.themoviedb.org/assets/2/v4/glyphicons/basic/glyphicons-basic-38-picture-grey-c2ebdbb057f2a7614185931650f8cee23fa137b93812ccb132b9df511df1cfac.svg".to_string()
+            };
+
+            let image = Image::new(&url).fit_to_exact_size(egui::vec2(120.0, 160.0));
+
+            if ui.add(ImageButton::new(image)).clicked() {
+                ctx.open_url(egui::OpenUrl {
+                    url,
+                    new_tab: false,
+                })
+            };
+            ui.vertical(|ui| {
+                ui.horizontal(|ui| {
+                    ui.heading(&movie_details.original_title);
+                    ui.label(RichText::new(movie_details.release_date.clone().unwrap_or_default()).color(Color32::GRAY));
+                });
+
+                ui.label(RichText::new(humanize_runtime(movie_details.runtime)).color(Color32::GRAY));
+                ui.label(movie_details.tagline.clone().unwrap_or_default());
+                ui.separator();
+                ui.label(movie_details.overview.clone().unwrap_or_default());
             });
         });
     }
