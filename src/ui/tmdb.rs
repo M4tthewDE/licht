@@ -11,9 +11,6 @@ pub struct TmdbClient {
 #[derive(Deserialize, Debug, Clone)]
 pub struct MovieSearchResult {
     pub id: u64,
-    pub original_title: String,
-    pub release_date: Option<String>,
-    pub poster_path: Option<String>,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -23,7 +20,6 @@ pub struct MovieSearchResponse {
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct MovieDetailsResponse {
-    pub id: u64,
     pub overview: Option<String>,
     pub runtime: u64,
     pub original_title: String,
@@ -41,7 +37,6 @@ pub struct MovieCastMember {
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct MovieCreditsResponse {
-    pub id: u64,
     pub cast: Vec<MovieCastMember>,
 }
 

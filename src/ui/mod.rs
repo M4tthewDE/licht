@@ -48,6 +48,7 @@ impl eframe::App for LichtApp {
         if let Some(last_change_time) = self.state.last_change_time
             && Instant::now().duration_since(last_change_time).as_millis() >= 250
         {
+            self.state.last_change_time = None;
             self.do_search();
         }
 
@@ -69,46 +70,33 @@ impl LichtApp {
     }
 
     fn do_search(&mut self) {
-        self.state.last_change_time = None;
-
         let tmdb_client = self.tmdb_client.clone();
         let search_text = self.state.search_text.clone();
         let tx = self.tx.clone();
         self.rt.spawn(async move {
-            let movie_searches: Vec<MovieSearch> = tmdb_client
-                .search_movies(&search_text)
-                .await
-                .results
-                .iter()
-                .map(|s| s.clone().into())
-                .collect();
-            tx.send(state::movie_search_mutation(movie_searches.clone()))
-                .unwrap();
+            let movie_search_resp = tmdb_client.search_movies(&search_text).await;
 
-            for movie_search in &movie_searches {
-                let movie_details = tmdb_client.movie_details(movie_search.id).await;
-                tx.send(state::movie_details_mutation(movie_details.clone().into()))
+            let mut movie_searches = Vec::new();
+            for result in movie_search_resp.results {
+                let movie_details = tmdb_client.movie_details(result.id).await;
+                let credits = tmdb_client.movie_credits(result.id).await;
+
+                movie_searches.push(MovieSearch::new(movie_details, credits));
+                tx.send(state::movie_search_mutation(movie_searches.clone()))
                     .unwrap();
-
-                tx.send(state::movie_credits_mutation(
-                    tmdb_client.movie_credits(movie_search.id).await.into(),
-                ))
-                .unwrap();
             }
         });
     }
 
     fn show(&mut self, ui: &mut egui::Ui) {
-        if let Some(current_movie) = self.state.current_movie {
+        if let Some(current_movie) = self.state.current_movie.clone() {
             if ui.button("Back").clicked() {
                 self.state.current_movie = None;
             }
 
             ui.separator();
 
-            if let Some(movie_details) = self.state.details(current_movie) {
-                self.movie(&movie_details, ui);
-            }
+            self.current_movie(&current_movie, ui);
         } else {
             ui.heading("Search");
             self.search(ui);
@@ -130,42 +118,49 @@ impl LichtApp {
         if !self.state.movie_searches.is_empty() {
             ScrollArea::both().show(ui, |ui| {
                 for movie_search in self.state.movie_searches.clone() {
-                    self.movie_search_results(movie_search.clone(), ui);
+                    self.movie_search_result(movie_search.clone(), ui);
                     ui.separator();
                 }
             });
         }
     }
 
-    fn movie_search_results(&mut self, movie_search: MovieSearch, ui: &mut egui::Ui) {
+    fn movie_search_result(&mut self, movie_search: MovieSearch, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
-            let image =
-                Image::new(&movie_search.poster_url).fit_to_exact_size(egui::vec2(120.0, 160.0));
+            let image = Image::new(&movie_search.details.poster_url)
+                .fit_to_exact_size(egui::vec2(120.0, 160.0));
 
             if ui.add(ImageButton::new(image)).clicked() {
-                self.state.current_movie = Some(movie_search.id);
+                self.state.current_movie = Some(movie_search.details.clone());
             };
 
             ui.vertical(|ui| {
                 ui.horizontal(|ui| {
-                    ui.label(&movie_search.original_title);
+                    ui.label(&movie_search.details.original_title);
                     ui.label(
-                        RichText::new(movie_search.release_date.clone().unwrap_or_default())
-                            .color(Color32::GRAY),
+                        RichText::new(
+                            movie_search
+                                .details
+                                .release_date
+                                .clone()
+                                .unwrap_or_default(),
+                        )
+                        .color(Color32::GRAY),
                     );
                 });
 
-                if let Some(details) = self.state.details(movie_search.id)
-                    && details.runtime != 0
-                {
-                    ui.label(RichText::new(humanize_runtime(details.runtime)).color(Color32::GRAY));
+                if movie_search.details.runtime != 0 {
+                    ui.label(
+                        RichText::new(humanize_runtime(movie_search.details.runtime))
+                            .color(Color32::GRAY),
+                    );
                 }
 
                 ui.add_space(10.0);
 
-                if let Some(movie_credits) = self.state.credits(movie_search.id) {
+                if !movie_search.credits.credits.is_empty() {
                     ui.horizontal(|ui| {
-                        for credit in movie_credits.credits {
+                        for credit in movie_search.credits.credits {
                             let image = Image::new(&credit.profile_photo_url)
                                 .fit_to_exact_size(egui::vec2(60.0, 90.0));
 
@@ -182,7 +177,7 @@ impl LichtApp {
         });
     }
 
-    fn movie(&self, movie_details: &MovieDetails, ui: &mut egui::Ui) {
+    fn current_movie(&self, movie_details: &MovieDetails, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
             let image =
                 Image::new(&movie_details.poster_url).fit_to_exact_size(egui::vec2(120.0, 160.0));
