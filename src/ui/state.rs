@@ -4,13 +4,19 @@ use std::time::Instant;
 #[derive(Clone)]
 pub struct MovieSearch {
     pub details: MovieDetails,
+    pub german_details: MovieDetails,
     pub credits: MovieCredits,
 }
 
 impl MovieSearch {
-    pub fn new(details: MovieDetailsResponse, credits: MovieCreditsResponse) -> Self {
+    pub fn new(
+        details: MovieDetailsResponse,
+        german_details: MovieDetailsResponse,
+        credits: MovieCreditsResponse,
+    ) -> Self {
         Self {
             details: details.into(),
+            german_details: german_details.into(),
             credits: credits.into(),
         }
     }
@@ -19,6 +25,7 @@ impl MovieSearch {
 #[derive(Clone)]
 pub struct MovieDetails {
     pub original_title: String,
+    pub title: String,
     pub release_date: Option<String>,
     pub poster_url: String,
     pub runtime: u64,
@@ -30,6 +37,7 @@ impl From<MovieDetailsResponse> for MovieDetails {
     fn from(details: MovieDetailsResponse) -> Self {
         Self {
             original_title: details.original_title,
+            title: details.title,
             release_date: details.release_date,
             poster_url: build_poster_url(details.poster_path),
             runtime: details.runtime,

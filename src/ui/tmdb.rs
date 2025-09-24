@@ -23,6 +23,7 @@ pub struct MovieDetailsResponse {
     pub overview: Option<String>,
     pub runtime: u64,
     pub original_title: String,
+    pub title: String,
     pub poster_path: Option<String>,
     pub release_date: Option<String>,
     pub tagline: Option<String>,
@@ -39,6 +40,9 @@ pub struct MovieCastMember {
 pub struct MovieCreditsResponse {
     pub cast: Vec<MovieCastMember>,
 }
+
+pub const ENGLISH: &str = "en-US";
+pub const GERMAN: &str = "de-DE";
 
 impl TmdbClient {
     pub fn new(token: String) -> Self {
@@ -59,7 +63,7 @@ impl TmdbClient {
         let request = self
             .client
             .request(Method::GET, "https://api.themoviedb.org/3/search/movie")
-            .query(&[("language", "en-US"), ("page", "1"), ("query", search_text)])
+            .query(&[("query", search_text)])
             .build()
             .unwrap();
 
@@ -72,10 +76,18 @@ impl TmdbClient {
             .unwrap()
     }
 
-    pub async fn movie_details(&self, id: u64) -> MovieDetailsResponse {
+    pub async fn movie_details(&self, id: u64, language: &str) -> MovieDetailsResponse {
+        let request = self
+            .client
+            .request(
+                Method::GET,
+                format!("https://api.themoviedb.org/3/movie/{id}"),
+            )
+            .query(&[("language", language)])
+            .build()
+            .unwrap();
         self.client
-            .get(format!("https://api.themoviedb.org/3/movie/{}", id))
-            .send()
+            .execute(request)
             .await
             .unwrap()
             .json()
@@ -85,7 +97,7 @@ impl TmdbClient {
 
     pub async fn movie_credits(&self, id: u64) -> MovieCreditsResponse {
         self.client
-            .get(format!("https://api.themoviedb.org/3/movie/{}/credits", id))
+            .get(format!("https://api.themoviedb.org/3/movie/{id}/credits"))
             .send()
             .await
             .unwrap()

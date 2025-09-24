@@ -78,10 +78,15 @@ impl LichtApp {
 
             let mut movie_searches = Vec::new();
             for result in movie_search_resp.results {
-                let movie_details = tmdb_client.movie_details(result.id).await;
+                let movie_details = tmdb_client.movie_details(result.id, tmdb::ENGLISH).await;
+                let german_movie_details = tmdb_client.movie_details(result.id, tmdb::GERMAN).await;
                 let credits = tmdb_client.movie_credits(result.id).await;
 
-                movie_searches.push(MovieSearch::new(movie_details, credits));
+                movie_searches.push(MovieSearch::new(
+                    movie_details,
+                    german_movie_details,
+                    credits,
+                ));
                 tx.send(state::movie_search_mutation(movie_searches.clone()))
                     .unwrap();
             }
@@ -136,7 +141,12 @@ impl LichtApp {
 
             ui.vertical(|ui| {
                 ui.horizontal(|ui| {
-                    ui.label(&movie_search.details.original_title);
+                    ui.label(&movie_search.details.original_title)
+                        .context_menu(|ui| {
+                            if ui.button("Copy German title").clicked() {
+                                ui.ctx().copy_text(movie_search.german_details.title);
+                            }
+                        });
                     ui.label(
                         RichText::new(
                             movie_search
