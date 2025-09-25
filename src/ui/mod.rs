@@ -23,11 +23,13 @@ pub struct LichtApp {
     rx: Receiver<StateMutation>,
     tx: Sender<StateMutation>,
     state: State,
-    map_state: map::State,
 }
 
 impl eframe::App for LichtApp {
     fn update(&mut self, ctx: &egui::Context, _: &mut eframe::Frame) {
+        puffin::profile_function!();
+        puffin::GlobalProfiler::lock().new_frame();
+
         if let Ok(modifier) = self.rx.try_recv() {
             modifier(&mut self.state);
         }
@@ -64,14 +66,20 @@ impl eframe::App for LichtApp {
 impl LichtApp {
     pub fn new(ctx: egui::Context, config: Config) -> Self {
         let (tx, rx) = std::sync::mpsc::channel();
+        let rt = Builder::new_multi_thread().enable_all().build().unwrap();
+
+        let t = tx.clone();
+        rt.spawn(async move {
+            let stops = state::load_stops().await;
+            t.send(state::stops_mutation(stops)).unwrap();
+        });
 
         Self {
             tmdb_client: TmdbClient::new(config.tmdb_token),
-            rt: Builder::new_multi_thread().enable_all().build().unwrap(),
+            rt,
             tx,
             rx,
-            state: State::default(),
-            map_state: map::State::new(config.mapbox_token, ctx),
+            state: State::new(config.mapbox_token, ctx),
         }
     }
 
@@ -93,6 +101,7 @@ impl LichtApp {
     }
 
     fn show(&mut self, ui: &mut egui::Ui) {
+        puffin::profile_function!();
         if ui.button("Map").clicked() {
             self.state.show_map = true;
             return;
