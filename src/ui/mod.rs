@@ -66,12 +66,12 @@ impl LichtApp {
         let (tx, rx) = std::sync::mpsc::channel();
 
         Self {
-            tmdb_client: TmdbClient::new(config.token),
+            tmdb_client: TmdbClient::new(config.tmdb_token),
             rt: Builder::new_multi_thread().enable_all().build().unwrap(),
             tx,
             rx,
             state: State::default(),
-            map_state: map::State::new(ctx),
+            map_state: map::State::new(config.mapbox_token, ctx),
         }
     }
 

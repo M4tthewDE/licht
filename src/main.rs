@@ -6,7 +6,8 @@ mod ui;
 
 #[derive(Deserialize, Clone)]
 struct Config {
-    token: String,
+    tmdb_token: String,
+    mapbox_token: String,
 }
 
 fn main() -> eframe::Result {

@@ -15,13 +15,13 @@ pub struct State {
 }
 
 impl State {
-    pub fn new(ctx: egui::Context) -> Self {
+    pub fn new(token: String, ctx: egui::Context) -> Self {
         Self {
             tiles: HttpTiles::new(
                 Mapbox {
                     style: MapboxStyle::Dark,
                     high_resolution: true,
-                    access_token: "pk.eyJ1IjoibWF0dGhld2RlIiwiYSI6ImNrb3NsbHo0cDAycHgycHE3bjU1enNjNncifQ.bLfLqwHHxq0OWS-vYHBiKg".to_owned(),
+                    access_token: token,
                 },
                 ctx,
             ),
