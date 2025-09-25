@@ -13,6 +13,7 @@ use tokio::runtime::{Builder, Runtime};
 
 use egui::{Color32, FontId};
 
+mod map;
 mod state;
 mod tmdb;
 
@@ -22,6 +23,7 @@ pub struct LichtApp {
     rx: Receiver<StateMutation>,
     tx: Sender<StateMutation>,
     state: State,
+    map_state: map::State,
 }
 
 impl eframe::App for LichtApp {
@@ -49,12 +51,18 @@ impl eframe::App for LichtApp {
             self.do_search();
         }
 
-        egui::CentralPanel::default().show(ctx, |ui| self.show(ui));
+        egui::CentralPanel::default().show(ctx, |ui| {
+            if self.state.show_map {
+                map::show(self, ui);
+            } else {
+                self.show(ui);
+            }
+        });
     }
 }
 
 impl LichtApp {
-    pub fn new(config: Config) -> Self {
+    pub fn new(ctx: egui::Context, config: Config) -> Self {
         let (tx, rx) = std::sync::mpsc::channel();
 
         Self {
@@ -63,6 +71,7 @@ impl LichtApp {
             tx,
             rx,
             state: State::default(),
+            map_state: map::State::new(ctx),
         }
     }
 
@@ -84,6 +93,11 @@ impl LichtApp {
     }
 
     fn show(&mut self, ui: &mut egui::Ui) {
+        if ui.button("Map").clicked() {
+            self.state.show_map = true;
+            return;
+        }
+
         if let Some(current_movie) = self.state.current_movie.clone() {
             if ui.button("Back").clicked() {
                 self.state.current_movie = None;

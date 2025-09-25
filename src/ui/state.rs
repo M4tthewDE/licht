@@ -83,6 +83,7 @@ pub struct State {
     pub movie_searches: Vec<MovieSearch>,
     pub last_change_time: Option<Instant>,
     pub current_movie: Option<MovieDetails>,
+    pub show_map: bool,
 }
 
 pub type StateMutation = Box<dyn Fn(&mut State) + Send + 'static>;
