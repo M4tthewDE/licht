@@ -87,8 +87,8 @@ pub struct State {
 
 pub type StateMutation = Box<dyn Fn(&mut State) + Send + 'static>;
 
-pub fn movie_search_mutation(movie_searches: Vec<MovieSearch>) -> StateMutation {
-    Box::new(move |state: &mut State| state.movie_searches = movie_searches.clone())
+pub fn movie_search_mutation(movie_search: MovieSearch) -> StateMutation {
+    Box::new(move |state: &mut State| state.movie_searches.push(movie_search.clone()))
 }
 
 fn build_poster_url(poster_path: Option<String>) -> String {

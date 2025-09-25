@@ -5,7 +5,6 @@ use egui::{
 };
 use state::{MovieDetails, MovieSearch, State, StateMutation};
 use std::{
-    collections::BTreeMap,
     sync::mpsc::{Receiver, Sender},
     time::Instant,
 };
@@ -31,15 +30,13 @@ impl eframe::App for LichtApp {
             modifier(&mut self.state);
         }
 
-        let text_styles: BTreeMap<_, _> = [
-            (Heading, FontId::new(25.0, egui::FontFamily::Proportional)),
-            (Body, FontId::new(15.0, egui::FontFamily::Proportional)),
-            (Button, FontId::new(15.0, egui::FontFamily::Proportional)),
-        ]
-        .into();
-
         ctx.all_styles_mut(|style| {
-            style.text_styles = text_styles.clone();
+            style.text_styles = [
+                (Heading, FontId::new(25.0, egui::FontFamily::Proportional)),
+                (Body, FontId::new(15.0, egui::FontFamily::Proportional)),
+                (Button, FontId::new(15.0, egui::FontFamily::Proportional)),
+            ]
+            .into();
             style.visuals.override_text_color = Some(Color32::WHITE);
             style.visuals.panel_fill = Color32::BLACK;
             style.visuals.text_edit_bg_color = Some(Color32::DARK_GRAY);
@@ -69,26 +66,19 @@ impl LichtApp {
         }
     }
 
-    fn do_search(&mut self) {
+    fn do_search(&self) {
         let tmdb_client = self.tmdb_client.clone();
         let search_text = self.state.search_text.clone();
         let tx = self.tx.clone();
         self.rt.spawn(async move {
             let movie_search_resp = tmdb_client.search_movies(&search_text).await;
 
-            let mut movie_searches = Vec::new();
             for result in movie_search_resp.results {
                 let movie_details = tmdb_client.movie_details(result.id, tmdb::ENGLISH).await;
                 let german_movie_details = tmdb_client.movie_details(result.id, tmdb::GERMAN).await;
                 let credits = tmdb_client.movie_credits(result.id).await;
-
-                movie_searches.push(MovieSearch::new(
-                    movie_details,
-                    german_movie_details,
-                    credits,
-                ));
-                tx.send(state::movie_search_mutation(movie_searches.clone()))
-                    .unwrap();
+                let movie_search = MovieSearch::new(movie_details, german_movie_details, credits);
+                tx.send(state::movie_search_mutation(movie_search)).unwrap();
             }
         });
     }
