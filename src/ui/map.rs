@@ -1,9 +1,6 @@
 use walkers::{
     Map, Plugin,
-    extras::{
-        GroupedPlaces, LabeledSymbol, LabeledSymbolGroup, LabeledSymbolGroupStyle,
-        LabeledSymbolStyle, Symbol,
-    },
+    extras::{LabeledSymbol, LabeledSymbolStyle, Places, Symbol},
 };
 
 use crate::ui::LichtApp;
@@ -15,7 +12,7 @@ pub fn show(app: &mut LichtApp, ui: &mut egui::Ui) {
     if ui.button("Back").clicked() {
         app.state.show_map = false;
     }
-    ui.label(app.state.stops.len().to_string());
+
     let mut map = Map::new(
         Some(&mut app.state.tiles),
         &mut app.state.map_memory,
@@ -42,11 +39,5 @@ fn stops_plugin(stops: Vec<Stop>) -> impl Plugin {
         })
         .collect();
 
-    GroupedPlaces::new(
-        places,
-        LabeledSymbolGroup {
-            style: LabeledSymbolGroupStyle::default(),
-        },
-    )
+    Places::new(places)
 }
-

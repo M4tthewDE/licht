@@ -138,11 +138,14 @@ fn build_poster_url(poster_path: Option<String>) -> String {
     }
 }
 
+const VBK_ZONE_ID: &str = "0100";
+
 #[derive(Deserialize, Clone)]
 pub struct Stop {
     pub stop_name: String,
     pub stop_lat: f64,
     pub stop_lon: f64,
+    pub zone_id: String,
 }
 
 pub async fn load_stops() -> Vec<Stop> {
@@ -164,4 +167,7 @@ pub async fn load_stops() -> Vec<Stop> {
     stops.sort_by_key(|s| s.stop_name.clone());
     stops.dedup_by_key(|s| s.stop_name.clone());
     stops
+        .into_iter()
+        .filter(|s| s.zone_id == VBK_ZONE_ID)
+        .collect()
 }
