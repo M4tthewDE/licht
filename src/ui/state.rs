@@ -93,7 +93,7 @@ pub struct State {
     pub show_map: bool,
     pub tiles: HttpTiles,
     pub map_memory: MapMemory,
-    pub transit_data: TransitData,
+    pub routes: Vec<Route>,
 }
 
 impl State {
@@ -113,7 +113,7 @@ impl State {
                 ctx,
             ),
             map_memory: MapMemory::default(),
-            transit_data: TransitData::default(),
+            routes: Vec::new(),
         }
     }
 }
@@ -124,8 +124,8 @@ pub fn movie_search_mutation(movie_search: MovieSearch) -> StateMutation {
     Box::new(move |state: &mut State| state.movie_searches.push(movie_search.clone()))
 }
 
-pub fn transit_mutation(transit_data: TransitData) -> StateMutation {
-    Box::new(move |state: &mut State| state.transit_data = transit_data.clone())
+pub fn routes_mutation(routes: Vec<Route>) -> StateMutation {
+    Box::new(move |state: &mut State| state.routes = routes.clone())
 }
 
 fn build_poster_url(poster_path: Option<String>) -> String {
@@ -137,4 +137,50 @@ fn build_poster_url(poster_path: Option<String>) -> String {
     } else {
         "https://www.themoviedb.org/assets/2/v4/glyphicons/basic/glyphicons-basic-38-picture-grey-c2ebdbb057f2a7614185931650f8cee23fa137b93812ccb132b9df511df1cfac.svg".to_string()
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct Station {
+    pub name: String,
+    pub lon: f64,
+    pub lat: f64,
+}
+
+#[derive(Debug, Clone)]
+pub struct Route {
+    pub stations: Vec<Station>,
+}
+
+pub fn load_routes(transit_data: &TransitData) -> Vec<Route> {
+    let mut routes = Vec::new();
+
+    for route in &transit_data.routes {
+        let trip_ids: Vec<String> = transit_data
+            .trips
+            .iter()
+            .filter(|t| t.route_id == route.route_id)
+            .map(|t| t.trip_id.clone())
+            .collect();
+
+        let stop_ids: Vec<String> = transit_data
+            .stop_times
+            .iter()
+            .filter(|st| trip_ids.contains(&st.trip_id))
+            .map(|st| st.stop_id.clone())
+            .collect();
+
+        let stations: Vec<Station> = transit_data
+            .stops
+            .iter()
+            .filter(|s| stop_ids.contains(&s.stop_id))
+            .map(|s| Station {
+                name: s.stop_name.clone(),
+                lon: s.stop_lon,
+                lat: s.stop_lat,
+            })
+            .collect();
+        routes.push(Route { stations });
+    }
+
+    routes
 }

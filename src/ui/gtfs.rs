@@ -1,11 +1,11 @@
-use std::{io::Cursor, u8};
+use std::io::Cursor;
 
 use bytes::Bytes;
 use serde::Deserialize;
 use zip::ZipArchive;
 
-const VBK_ZONE_ID: &str = "0100";
 const VBK_AGENCY_ID: &str = "02";
+const ALBTAL_AGENCY_ID: &str = "01";
 
 #[derive(Deserialize, Clone)]
 pub struct StopTime {
@@ -17,6 +17,8 @@ pub struct StopTime {
 pub struct Route {
     pub route_id: String,
     pub agency_id: String,
+    pub route_short_name: String,
+    pub route_type: u8,
 }
 
 #[derive(Deserialize, Clone)]
@@ -27,10 +29,10 @@ pub struct Trip {
 
 #[derive(Deserialize, Clone)]
 pub struct Stop {
+    pub stop_id: String,
     pub stop_name: String,
     pub stop_lat: f64,
     pub stop_lon: f64,
-    pub zone_id: String,
 }
 
 #[derive(Deserialize, Clone, Default)]
@@ -69,9 +71,10 @@ fn load_stops(zip: &mut ZipArchive<Cursor<Bytes>>) -> Vec<Stop> {
     stops.sort_by_key(|s| s.stop_name.clone());
     stops.dedup_by_key(|s| s.stop_name.clone());
     stops
-        .into_iter()
-        .filter(|s| s.zone_id == VBK_ZONE_ID)
-        .collect()
+    //stops
+    //    .into_iter()
+    //    .filter(|s| s.zone_id == VBK_ZONE_ID)
+    //    .collect()
 }
 
 fn load_trips(zip: &mut ZipArchive<Cursor<Bytes>>) -> Vec<Trip> {
@@ -86,10 +89,14 @@ fn load_routes(zip: &mut ZipArchive<Cursor<Bytes>>) -> Vec<Route> {
     let routes_file = zip.by_name("routes.txt").unwrap();
 
     let mut csv_reader = csv::Reader::from_reader(routes_file);
-    let routes: Vec<Route> = csv_reader.deserialize().map(|r| r.unwrap()).collect();
+    let mut routes: Vec<Route> = csv_reader.deserialize().map(|r| r.unwrap()).collect();
+    routes.sort_by_key(|r| r.route_short_name.clone());
+    routes.dedup_by_key(|r| r.route_short_name.clone());
     routes
         .into_iter()
-        .filter(|r| r.agency_id == VBK_AGENCY_ID)
+        .filter(|r| {
+            (r.agency_id == VBK_AGENCY_ID || r.agency_id == ALBTAL_AGENCY_ID) && r.route_type < 3
+        })
         .collect()
 }
 

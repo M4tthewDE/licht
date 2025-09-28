@@ -3,9 +3,7 @@ use walkers::{
     extras::{LabeledSymbol, LabeledSymbolStyle, Places, Symbol},
 };
 
-use crate::ui::LichtApp;
-
-use crate::ui::gtfs::Stop;
+use crate::ui::{LichtApp, state::Route};
 
 pub fn show(app: &mut LichtApp, ui: &mut egui::Ui) {
     puffin::profile_function!();
@@ -19,18 +17,19 @@ pub fn show(app: &mut LichtApp, ui: &mut egui::Ui) {
         walkers::lon_lat(8.404418866463923, 49.01376021753036),
     );
 
-    map = map.with_plugin(stops_plugin(&app.state.transit_data.stops));
+    map = map.with_plugin(stops_plugin(&app.state.routes));
     ui.add(map);
 }
 
-fn stops_plugin(stops: &[Stop]) -> impl Plugin {
+fn stops_plugin(routes: &[Route]) -> impl Plugin {
     puffin::profile_function!();
 
-    let places = stops
+    let places = routes
         .iter()
+        .flat_map(|r| r.stations.clone())
         .map(|s| LabeledSymbol {
-            position: walkers::lat_lon(s.stop_lat, s.stop_lon),
-            label: s.stop_name.clone(),
+            position: walkers::lat_lon(s.lat, s.lon),
+            label: s.name.clone(),
             symbol: Some(Symbol::Circle("🚆".to_string())),
             style: LabeledSymbolStyle {
                 symbol_size: 25.,
