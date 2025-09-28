@@ -1,4 +1,4 @@
-use crate::Config;
+use crate::{Config, ui::gtfs::TransitData};
 use egui::{
     Image, ImageButton, RichText, ScrollArea,
     TextStyle::{Body, Button, Heading},
@@ -71,8 +71,8 @@ impl LichtApp {
 
         let t = tx.clone();
         rt.spawn(async move {
-            let stops = gtfs::load_stops().await;
-            t.send(state::stops_mutation(stops)).unwrap();
+            let transit_data = TransitData::load().await;
+            t.send(state::transit_mutation(transit_data)).unwrap();
         });
 
         Self {

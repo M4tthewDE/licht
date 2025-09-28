@@ -4,7 +4,7 @@ use walkers::{
 };
 
 use crate::ui::{
-    gtfs::Stop,
+    gtfs::TransitData,
     tmdb::{MovieCastMember, MovieCreditsResponse, MovieDetailsResponse},
 };
 use std::time::Instant;
@@ -93,7 +93,7 @@ pub struct State {
     pub show_map: bool,
     pub tiles: HttpTiles,
     pub map_memory: MapMemory,
-    pub stops: Vec<Stop>,
+    pub transit_data: TransitData,
 }
 
 impl State {
@@ -113,7 +113,7 @@ impl State {
                 ctx,
             ),
             map_memory: MapMemory::default(),
-            stops: Vec::new(),
+            transit_data: TransitData::default(),
         }
     }
 }
@@ -124,8 +124,8 @@ pub fn movie_search_mutation(movie_search: MovieSearch) -> StateMutation {
     Box::new(move |state: &mut State| state.movie_searches.push(movie_search.clone()))
 }
 
-pub fn stops_mutation(stops: Vec<Stop>) -> StateMutation {
-    Box::new(move |state: &mut State| state.stops = stops.clone())
+pub fn transit_mutation(transit_data: TransitData) -> StateMutation {
+    Box::new(move |state: &mut State| state.transit_data = transit_data.clone())
 }
 
 fn build_poster_url(poster_path: Option<String>) -> String {

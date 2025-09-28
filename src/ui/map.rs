@@ -19,11 +19,11 @@ pub fn show(app: &mut LichtApp, ui: &mut egui::Ui) {
         walkers::lon_lat(8.404418866463923, 49.01376021753036),
     );
 
-    map = map.with_plugin(stops_plugin(app.state.stops.clone()));
+    map = map.with_plugin(stops_plugin(&app.state.transit_data.stops));
     ui.add(map);
 }
 
-fn stops_plugin(stops: Vec<Stop>) -> impl Plugin {
+fn stops_plugin(stops: &[Stop]) -> impl Plugin {
     puffin::profile_function!();
 
     let places = stops

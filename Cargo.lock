@@ -2538,6 +2538,7 @@ dependencies = [
 name = "licht"
 version = "0.1.0"
 dependencies = [
+ "bytes",
  "csv",
  "eframe",
  "egui",
