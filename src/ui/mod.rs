@@ -13,6 +13,7 @@ use tokio::runtime::{Builder, Runtime};
 
 use egui::{Color32, FontId};
 
+mod gtfs;
 mod map;
 mod state;
 mod tmdb;
@@ -70,7 +71,7 @@ impl LichtApp {
 
         let t = tx.clone();
         rt.spawn(async move {
-            let stops = state::load_stops().await;
+            let stops = gtfs::load_stops().await;
             t.send(state::stops_mutation(stops)).unwrap();
         });
 

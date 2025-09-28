@@ -1,12 +1,13 @@
-use serde::Deserialize;
 use walkers::{
     HttpTiles, MapMemory,
     sources::{Mapbox, MapboxStyle},
 };
-use zip::ZipArchive;
 
-use crate::ui::tmdb::{MovieCastMember, MovieCreditsResponse, MovieDetailsResponse};
-use std::{io::Cursor, time::Instant};
+use crate::ui::{
+    gtfs::Stop,
+    tmdb::{MovieCastMember, MovieCreditsResponse, MovieDetailsResponse},
+};
+use std::time::Instant;
 
 #[derive(Clone)]
 pub struct MovieSearch {
@@ -136,38 +137,4 @@ fn build_poster_url(poster_path: Option<String>) -> String {
     } else {
         "https://www.themoviedb.org/assets/2/v4/glyphicons/basic/glyphicons-basic-38-picture-grey-c2ebdbb057f2a7614185931650f8cee23fa137b93812ccb132b9df511df1cfac.svg".to_string()
     }
-}
-
-const VBK_ZONE_ID: &str = "0100";
-
-#[derive(Deserialize, Clone)]
-pub struct Stop {
-    pub stop_name: String,
-    pub stop_lat: f64,
-    pub stop_lon: f64,
-    pub zone_id: String,
-}
-
-pub async fn load_stops() -> Vec<Stop> {
-    let resp = reqwest::get("https://projekte.kvv-efa.de/GTFS/google_transit.zip")
-        .await
-        .unwrap()
-        .bytes()
-        .await
-        .unwrap();
-    let reader = Cursor::new(resp);
-
-    let mut zip = ZipArchive::new(reader).unwrap();
-    let mut stops_file = zip.by_name("stops.txt").unwrap();
-    let mut stops_content = Vec::new();
-    std::io::copy(&mut stops_file, &mut stops_content).unwrap();
-
-    let mut csv_reader = csv::Reader::from_reader(Cursor::new(stops_content));
-    let mut stops: Vec<Stop> = csv_reader.deserialize().map(|r| r.unwrap()).collect();
-    stops.sort_by_key(|s| s.stop_name.clone());
-    stops.dedup_by_key(|s| s.stop_name.clone());
-    stops
-        .into_iter()
-        .filter(|s| s.zone_id == VBK_ZONE_ID)
-        .collect()
 }

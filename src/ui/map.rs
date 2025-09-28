@@ -5,7 +5,7 @@ use walkers::{
 
 use crate::ui::LichtApp;
 
-use crate::ui::state::Stop;
+use crate::ui::gtfs::Stop;
 
 pub fn show(app: &mut LichtApp, ui: &mut egui::Ui) {
     puffin::profile_function!();
