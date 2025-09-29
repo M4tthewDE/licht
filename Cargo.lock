@@ -2520,7 +2520,6 @@ dependencies = [
  "eframe",
  "egui",
  "egui_extras",
- "futures",
  "image",
  "mimalloc",
  "puffin",

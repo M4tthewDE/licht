@@ -1,4 +1,4 @@
-use futures::future::join_all;
+use tracing::info;
 use walkers::{
     HttpTiles, MapMemory,
     sources::{Mapbox, MapboxStyle},
@@ -8,7 +8,7 @@ use crate::ui::{
     gtfs::TransitData,
     tmdb::{MovieCastMember, MovieCreditsResponse, MovieDetailsResponse},
 };
-use std::time::Instant;
+use std::{collections::HashSet, time::Instant};
 
 #[derive(Clone)]
 pub struct MovieSearch {
@@ -152,46 +152,41 @@ pub struct Route {
     pub stations: Vec<Station>,
 }
 
-#[tracing::instrument(skip(transit_data))]
-pub async fn load_routes(transit_data: TransitData) -> Vec<Route> {
-    let mut handles = Vec::new();
-    for route in &transit_data.routes {
-        let td = transit_data.clone();
-        let route = route.clone();
-        let handle = tokio::spawn(async move {
-            let trip_ids: Vec<String> = td
-                .trips
-                .iter()
-                .filter(|t| t.route_id == route.route_id)
-                .map(|t| t.trip_id.clone())
-                .collect();
+impl Route {
+    fn new(td: &TransitData, route_id: &str) -> Self {
+        let trip_ids: HashSet<&String> = td
+            .trips
+            .iter()
+            .filter(|t| t.route_id == route_id)
+            .map(|t| &t.trip_id)
+            .collect();
 
-            let stop_ids: Vec<String> = td
-                .stop_times
-                .iter()
-                .filter(|st| trip_ids.contains(&st.trip_id))
-                .map(|st| st.stop_id.clone())
-                .collect();
+        let stop_ids: HashSet<&String> = td
+            .stop_times
+            .iter()
+            .filter(|st| trip_ids.contains(&st.trip_id))
+            .map(|st| &st.stop_id)
+            .collect();
 
-            let stations: Vec<Station> = td
-                .stops
-                .iter()
-                .filter(|s| stop_ids.contains(&s.stop_id))
-                .map(|s| Station {
-                    name: s.stop_name.clone(),
-                    lon: s.stop_lon,
-                    lat: s.stop_lat,
-                })
-                .collect();
-            Route { stations }
-        });
-
-        handles.push(handle);
+        let stations: Vec<Station> = td
+            .stops
+            .iter()
+            .filter(|s| stop_ids.contains(&s.stop_id))
+            .map(|s| Station {
+                name: s.stop_name.clone(),
+                lon: s.stop_lon,
+                lat: s.stop_lat,
+            })
+            .collect();
+        Route { stations }
     }
+}
 
-    join_all(handles)
-        .await
+#[tracing::instrument(skip(transit_data))]
+pub async fn load_routes(transit_data: &TransitData) -> Vec<Route> {
+    transit_data
+        .routes
         .iter()
-        .map(|r| r.as_ref().unwrap().clone())
+        .map(|r| Route::new(&transit_data, &r.route_id))
         .collect()
 }
