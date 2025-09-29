@@ -71,10 +71,6 @@ fn load_stops(zip: &mut ZipArchive<Cursor<Bytes>>) -> Vec<Stop> {
     stops.sort_by_key(|s| s.stop_name.clone());
     stops.dedup_by_key(|s| s.stop_name.clone());
     stops
-    //stops
-    //    .into_iter()
-    //    .filter(|s| s.zone_id == VBK_ZONE_ID)
-    //    .collect()
 }
 
 fn load_trips(zip: &mut ZipArchive<Cursor<Bytes>>) -> Vec<Trip> {

@@ -72,7 +72,7 @@ impl LichtApp {
         let t = tx.clone();
         rt.spawn(async move {
             let transit_data = TransitData::load().await;
-            let routes = state::load_routes(&transit_data);
+            let routes = state::load_routes(transit_data).await;
             t.send(state::routes_mutation(routes)).unwrap();
         });
 

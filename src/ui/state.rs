@@ -1,3 +1,4 @@
+use futures::future::join_all;
 use walkers::{
     HttpTiles, MapMemory,
     sources::{Mapbox, MapboxStyle},
@@ -152,36 +153,45 @@ pub struct Route {
 }
 
 #[tracing::instrument(skip(transit_data))]
-pub fn load_routes(transit_data: &TransitData) -> Vec<Route> {
-    let mut routes = Vec::new();
-
+pub async fn load_routes(transit_data: TransitData) -> Vec<Route> {
+    let mut handles = Vec::new();
     for route in &transit_data.routes {
-        let trip_ids: Vec<String> = transit_data
-            .trips
-            .iter()
-            .filter(|t| t.route_id == route.route_id)
-            .map(|t| t.trip_id.clone())
-            .collect();
+        let td = transit_data.clone();
+        let route = route.clone();
+        let handle = tokio::spawn(async move {
+            let trip_ids: Vec<String> = td
+                .trips
+                .iter()
+                .filter(|t| t.route_id == route.route_id)
+                .map(|t| t.trip_id.clone())
+                .collect();
 
-        let stop_ids: Vec<String> = transit_data
-            .stop_times
-            .iter()
-            .filter(|st| trip_ids.contains(&st.trip_id))
-            .map(|st| st.stop_id.clone())
-            .collect();
+            let stop_ids: Vec<String> = td
+                .stop_times
+                .iter()
+                .filter(|st| trip_ids.contains(&st.trip_id))
+                .map(|st| st.stop_id.clone())
+                .collect();
 
-        let stations: Vec<Station> = transit_data
-            .stops
-            .iter()
-            .filter(|s| stop_ids.contains(&s.stop_id))
-            .map(|s| Station {
-                name: s.stop_name.clone(),
-                lon: s.stop_lon,
-                lat: s.stop_lat,
-            })
-            .collect();
-        routes.push(Route { stations });
+            let stations: Vec<Station> = td
+                .stops
+                .iter()
+                .filter(|s| stop_ids.contains(&s.stop_id))
+                .map(|s| Station {
+                    name: s.stop_name.clone(),
+                    lon: s.stop_lon,
+                    lat: s.stop_lat,
+                })
+                .collect();
+            Route { stations }
+        });
+
+        handles.push(handle);
     }
 
-    routes
+    join_all(handles)
+        .await
+        .iter()
+        .map(|r| r.as_ref().unwrap().clone())
+        .collect()
 }
