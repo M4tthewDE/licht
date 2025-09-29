@@ -1,4 +1,3 @@
-use tracing::info;
 use walkers::{
     HttpTiles, MapMemory,
     sources::{Mapbox, MapboxStyle},
@@ -95,6 +94,7 @@ pub struct State {
     pub tiles: HttpTiles,
     pub map_memory: MapMemory,
     pub routes: Vec<Route>,
+    pub current_route: Option<Route>,
 }
 
 impl State {
@@ -115,6 +115,7 @@ impl State {
             ),
             map_memory: MapMemory::default(),
             routes: Vec::new(),
+            current_route: None,
         }
     }
 }
@@ -140,20 +141,21 @@ fn build_poster_url(poster_path: Option<String>) -> String {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Station {
     pub name: String,
     pub lon: f64,
     pub lat: f64,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Route {
     pub stations: Vec<Station>,
+    pub name: String,
 }
 
 impl Route {
-    fn new(td: &TransitData, route_id: &str) -> Self {
+    fn new(td: &TransitData, route_id: &str, name: String) -> Self {
         let trip_ids: HashSet<&String> = td
             .trips
             .iter()
@@ -178,7 +180,7 @@ impl Route {
                 lat: s.stop_lat,
             })
             .collect();
-        Route { stations }
+        Route { stations, name }
     }
 }
 
@@ -187,6 +189,6 @@ pub async fn load_routes(transit_data: &TransitData) -> Vec<Route> {
     transit_data
         .routes
         .iter()
-        .map(|r| Route::new(&transit_data, &r.route_id))
+        .map(|r| Route::new(transit_data, &r.route_id, r.route_short_name.clone()))
         .collect()
 }

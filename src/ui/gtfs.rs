@@ -44,6 +44,7 @@ pub struct TransitData {
 }
 
 impl TransitData {
+    #[tracing::instrument]
     pub async fn load() -> Self {
         let resp = reqwest::get("https://projekte.kvv-efa.de/GTFS/google_transit.zip")
             .await
