@@ -127,7 +127,10 @@ pub fn movie_search_mutation(movie_search: MovieSearch) -> StateMutation {
 }
 
 pub fn routes_mutation(routes: Vec<Route>) -> StateMutation {
-    Box::new(move |state: &mut State| state.routes = routes.clone())
+    Box::new(move |state: &mut State| {
+        state.routes = routes.clone();
+        state.current_route = routes.first().cloned();
+    })
 }
 
 fn build_poster_url(poster_path: Option<String>) -> String {
