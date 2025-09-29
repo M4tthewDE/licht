@@ -1,6 +1,7 @@
 use std::fs::File;
 
 use serde::Deserialize;
+use tracing_subscriber::fmt::format::FmtSpan;
 
 mod ui;
 
@@ -14,10 +15,12 @@ struct Config {
 }
 
 fn main() -> eframe::Result {
-    env_logger::init();
-    puffin::set_scopes_on(true);
+    tracing_subscriber::fmt::fmt()
+        .with_span_events(FmtSpan::CLOSE)
+        .init();
 
     let _puffin_server = if std::env::var("PROFILER").is_ok() {
+        puffin::set_scopes_on(true);
         eprintln!("running with profiler");
         let server_addr = format!("127.0.0.1:{}", puffin_http::DEFAULT_PORT);
         Some(puffin_http::Server::new(&server_addr).unwrap())

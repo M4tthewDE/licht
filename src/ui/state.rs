@@ -151,6 +151,7 @@ pub struct Route {
     pub stations: Vec<Station>,
 }
 
+#[tracing::instrument(skip(transit_data))]
 pub fn load_routes(transit_data: &TransitData) -> Vec<Route> {
     let mut routes = Vec::new();
 
