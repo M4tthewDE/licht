@@ -32,7 +32,7 @@ fn stops_plugin(route: &Route) -> impl Plugin {
         .iter()
         .map(|s| LabeledSymbol {
             position: walkers::lat_lon(s.lat, s.lon),
-            label: "".to_string(),
+            label: s.name.to_string(),
             symbol: Some(Symbol::Circle("🚆".to_string())),
             style: LabeledSymbolStyle {
                 label_font: FontId::proportional(12.0),

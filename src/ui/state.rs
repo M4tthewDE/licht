@@ -1,3 +1,4 @@
+use tracing::info;
 use walkers::{
     HttpTiles, MapMemory,
     sources::{Mapbox, MapboxStyle},
@@ -158,7 +159,7 @@ pub struct Route {
 }
 
 impl Route {
-    fn new(td: &TransitData, route_id: &str, name: String) -> Self {
+    async fn new(td: &TransitData, route_id: &str, name: String) -> Self {
         let trip_ids: HashSet<&String> = td
             .trips
             .iter()
@@ -183,15 +184,80 @@ impl Route {
                 lat: s.stop_lat,
             })
             .collect();
+
+        info!(name);
+        calculate_geopoints(&stations).await;
         Route { stations, name }
     }
 }
 
 #[tracing::instrument(skip(transit_data))]
 pub async fn load_routes(transit_data: &TransitData) -> Vec<Route> {
-    transit_data
-        .routes
-        .iter()
-        .map(|r| Route::new(transit_data, &r.route_id, r.route_short_name.clone()))
-        .collect()
+    let mut routes = Vec::new();
+    for r in &transit_data.routes {
+        routes.push(Route::new(transit_data, &r.route_id, r.route_short_name.clone()).await);
+    }
+
+    routes
+}
+
+#[tracing::instrument(skip(stations))]
+async fn calculate_geopoints(stations: &[Station]) {
+    let bounding_box = bounding_box(stations);
+    info!(
+        "{},{}",
+        bounding_box.top_left.lat, bounding_box.top_left.lon
+    );
+    info!(
+        "{},{}",
+        bounding_box.bottom_right.lat, bounding_box.bottom_right.lon
+    );
+}
+
+#[derive(Clone, Debug)]
+struct GeoPoint {
+    lat: f64,
+    lon: f64,
+}
+
+#[derive(Clone, Debug)]
+struct BoundingBox {
+    top_left: GeoPoint,
+    bottom_right: GeoPoint,
+}
+
+fn bounding_box(stations: &[Station]) -> BoundingBox {
+    let mut top = -85.;
+    let mut bottom = 85.;
+    let mut left = 180.0;
+    let mut right = -180.0;
+
+    for station in stations.iter().skip(1) {
+        if station.lat > top {
+            top = station.lat
+        }
+
+        if station.lat < bottom {
+            bottom = station.lat
+        }
+
+        if station.lon < left {
+            left = station.lon
+        }
+
+        if station.lon > right {
+            right = station.lon
+        }
+    }
+
+    BoundingBox {
+        top_left: GeoPoint {
+            lat: top,
+            lon: left,
+        },
+        bottom_right: GeoPoint {
+            lat: bottom,
+            lon: right,
+        },
+    }
 }
