@@ -1,3 +1,6 @@
+use reqwest::{ClientBuilder, Method};
+use serde::Deserialize;
+use tracing::info;
 use walkers::{
     HttpTiles, MapMemory,
     sources::{Mapbox, MapboxStyle},
@@ -155,6 +158,7 @@ pub struct Station {
 pub struct Route {
     pub stations: Vec<Station>,
     pub name: String,
+    pub elements: Vec<Element>,
 }
 
 impl Route {
@@ -183,15 +187,159 @@ impl Route {
                 lat: s.stop_lat,
             })
             .collect();
-        Route { stations, name }
+
+        info!(name);
+        Route {
+            stations,
+            name,
+            elements: vec![],
+        }
     }
 }
 
 #[tracing::instrument(skip(transit_data))]
 pub async fn load_routes(transit_data: &TransitData) -> Vec<Route> {
-    transit_data
-        .routes
-        .iter()
-        .map(|r| Route::new(transit_data, &r.route_id, r.route_short_name.clone()))
-        .collect()
+    let mut routes = Vec::new();
+    for r in &transit_data.routes {
+        routes.push(Route::new(
+            transit_data,
+            &r.route_id,
+            r.route_short_name.clone(),
+        ));
+    }
+
+    calculate_geopoints(&mut routes).await;
+
+    routes
+}
+
+#[tracing::instrument(skip(routes))]
+async fn calculate_geopoints(routes: &mut [Route]) {
+    let bounding_box = bounding_box(routes);
+    let ways = load_ways(&bounding_box).await;
+    info!("railway elements: {}", ways.elements.len());
+
+    for route in routes {
+        let elements = calculate_elements(route, &ways).await;
+        info!("elements: {}", elements.len());
+        route.elements = elements;
+    }
+}
+
+#[tracing::instrument(skip_all)]
+async fn calculate_elements(route: &Route, ways: &WaysResponse) -> Vec<Element> {
+    let mut elements = Vec::new();
+    for (i, a) in route.stations.iter().enumerate() {
+        if i == route.stations.len() - 1 {
+            return elements;
+        }
+
+        let b = route.stations.get(i + 1).unwrap();
+
+        for element in &ways.elements {
+            if stations_inside_element(a, b, element) {
+                elements.push(element.clone());
+            }
+        }
+    }
+
+    elements
+}
+
+fn stations_inside_element(a: &Station, b: &Station, element: &Element) -> bool {
+    element.bounds.maxlat > a.lat.max(b.lat)
+        && element.bounds.minlat < a.lat.min(b.lat)
+        && element.bounds.maxlon > a.lon.max(b.lon)
+        && element.bounds.minlon < a.lon.min(b.lon)
+}
+
+#[derive(Clone, Debug)]
+struct GeoPoint {
+    lat: f64,
+    lon: f64,
+}
+
+#[derive(Clone, Debug)]
+struct BoundingBox {
+    top_left: GeoPoint,
+    bottom_right: GeoPoint,
+}
+
+fn bounding_box(routes: &[Route]) -> BoundingBox {
+    let mut top = -85.;
+    let mut bottom = 85.;
+    let mut left = 180.0;
+    let mut right = -180.0;
+
+    for station in routes.iter().flat_map(|r| &r.stations) {
+        if station.lat > top {
+            top = station.lat
+        }
+
+        if station.lat < bottom {
+            bottom = station.lat
+        }
+
+        if station.lon < left {
+            left = station.lon
+        }
+
+        if station.lon > right {
+            right = station.lon
+        }
+    }
+
+    BoundingBox {
+        top_left: GeoPoint {
+            lat: top,
+            lon: left,
+        },
+        bottom_right: GeoPoint {
+            lat: bottom,
+            lon: right,
+        },
+    }
+}
+
+#[derive(Clone, Debug, Deserialize)]
+struct WaysResponse {
+    elements: Vec<Element>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq)]
+pub struct Element {
+    bounds: Bounds,
+    pub geometry: Vec<Point>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq)]
+struct Bounds {
+    minlat: f64,
+    minlon: f64,
+    maxlat: f64,
+    maxlon: f64,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq)]
+pub struct Point {
+    pub lat: f64,
+    pub lon: f64,
+}
+
+#[tracing::instrument]
+async fn load_ways(bounding_box: &BoundingBox) -> WaysResponse {
+    let client = ClientBuilder::new().build().unwrap();
+    let request = client
+        .request(Method::POST, "https://overpass-api.de/api/interpreter")
+        .body(format!(
+            "[out:json];way[\"railway\"]({},{},{},{});out geom;",
+            bounding_box.bottom_right.lat,
+            bounding_box.top_left.lon,
+            bounding_box.top_left.lat,
+            bounding_box.bottom_right.lon,
+        ))
+        .build()
+        .unwrap();
+
+    client.execute(request).await.unwrap().json().await.unwrap()
 }

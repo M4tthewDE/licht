@@ -1,10 +1,14 @@
-use egui::{Align2, ComboBox, FontId, Window};
+use egui::{Align2, Color32, ComboBox, FontId, Window, epaint::PathStroke};
 use walkers::{
     Map, Plugin,
     extras::{LabeledSymbol, LabeledSymbolStyle, Places, Symbol},
+    lat_lon,
 };
 
-use crate::ui::{LichtApp, state::Route};
+use crate::ui::{
+    LichtApp,
+    state::{Element, Route},
+};
 
 pub fn show(app: &mut LichtApp, ui: &mut egui::Ui) {
     puffin::profile_function!();
@@ -16,6 +20,9 @@ pub fn show(app: &mut LichtApp, ui: &mut egui::Ui) {
     );
 
     if let Some(route) = &app.state.current_route {
+        for element in route.elements.clone() {
+            map = map.with_plugin(element);
+        }
         map = map.with_plugin(stops_plugin(route));
     }
 
@@ -32,7 +39,7 @@ fn stops_plugin(route: &Route) -> impl Plugin {
         .iter()
         .map(|s| LabeledSymbol {
             position: walkers::lat_lon(s.lat, s.lon),
-            label: "".to_string(),
+            label: s.name.to_string(),
             symbol: Some(Symbol::Circle("🚆".to_string())),
             style: LabeledSymbolStyle {
                 label_font: FontId::proportional(12.0),
@@ -75,4 +82,25 @@ fn controls(app: &mut LichtApp, ui: &egui::Ui) {
                     }
                 });
         });
+}
+
+impl Plugin for Element {
+    fn run(
+        self: Box<Self>,
+        ui: &mut egui::Ui,
+        _response: &egui::Response,
+        projector: &walkers::Projector,
+        _map_memory: &walkers::MapMemory,
+    ) {
+        let mut positions = Vec::new();
+        for geometry in self.geometry {
+            let position = projector
+                .project(lat_lon(geometry.lat, geometry.lon))
+                .to_pos2();
+            positions.push(position);
+        }
+
+        ui.painter()
+            .line(positions, PathStroke::new(5.0, Color32::RED));
+    }
 }
